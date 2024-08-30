@@ -48,7 +48,7 @@ def send_data_to_kafka(invoke_url, data):
         print(f"Failed to send data to {invoke_url}: {response.status_code}, {response.text}")
 
 def run_infinite_post_data_loop():
-    # while True:
+    while True:
         sleep(random.randrange(0, 2))
         random_row = random.randint(0, 11000)
         engine = new_connector.create_db_connector()
