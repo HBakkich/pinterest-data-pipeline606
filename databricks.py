@@ -42,6 +42,8 @@ dbutils.fs.mount(SOURCE_URL, MOUNT_NAME)
 
 display(dbutils.fs.ls(MOUNT_NAME))
 
+# For Milestone 8, comment out all code above until this point, 
+#  otherwise the Apache Airflow Dag run will fail
 
 
 # COMMAND ----------
