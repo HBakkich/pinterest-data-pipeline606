@@ -28,9 +28,9 @@ class AWSDBConnector:
 new_connector = AWSDBConnector()
 
 # Set the API Invoke URLs for each Kafka topic
-pin_invoke_url = "https://8nnc5v1d62.execute-api.us-east-1.amazonaws.com/dev/topics/124f8314c0a1.pin"
-geo_invoke_url = "https://8nnc5v1d62.execute-api.us-east-1.amazonaws.com/dev/topics/124f8314c0a1.geo"
-user_invoke_url = "https://8nnc5v1d62.execute-api.us-east-1.amazonaws.com/dev/topics/124f8314c0a1.user"
+pin_invoke_url = "https://8nnc5v1d62.execute-api.us-east-1.amazonaws.com/dev/streams/streaming-124f8314c0a1-pin/record"
+geo_invoke_url = "https://8nnc5v1d62.execute-api.us-east-1.amazonaws.com/dev/streams/streaming-124f8314c0a1-geo/record"
+user_invoke_url = "https://8nnc5v1d62.execute-api.us-east-1.amazonaws.com/dev/streams/streaming-124f8314c0a1-user/record"
 
 def send_data_to_kafka(invoke_url, data):
     payload = json.dumps({
@@ -42,8 +42,8 @@ def send_data_to_kafka(invoke_url, data):
     }, 
         indent=4, sort_keys=True, default=str)
 
-    headers = {'Content-Type': 'application/vnd.kafka.json.v2+json'}
-    response = requests.request("POST", invoke_url, headers=headers, data=payload)
+    headers = {'Content-Type': 'application/json'}
+    response = requests.request("PUT", invoke_url, headers=headers, data=payload)
     if response.status_code != 200:
         print(f"Failed to send data to {invoke_url}: {response.status_code}, {response.text}")
 
