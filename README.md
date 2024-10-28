@@ -11,13 +11,13 @@ This project aims to build a data pipeline similar to Pinterest's system, which 
 4. [Milestones](#milestones)
    - [Milestone 1: Environment Setup](#milestone-1-environment-setup)
    - [Milestone 2: Get Started](#milestone-2-get-started)
-   - [Milestone 3: Batch Processing - Configure EC2 Kafka Client](#milestone-3-batch-processing-configure-ec2-kafka-client)
-   - [Milestone 4: Batch Processing - MSK to S3](#milestone-4-batch-processing-msk-to-s3)
-   - [Milestone 5: Batch Processing - API Gateway](#milestone-5-batch-processing-api-gateway)
-   - [Milestone 6: Batch Processing - Databricks Setup](#milestone-6-batch-processing-databricks-setup)
-   - [Milestone 7: Batch Processing - Spark on Databricks](#milestone-7-batch-processing-spark-on-databricks)
-   - [Milestone 8: Batch Processing - AWS MWAA](#milestone-8-batch-processing-aws-mwaa)
-   - [Milestone 9: Stream Processing - AWS Kinesis](#milestone-9-stream-processing-aws-kinesis)
+   - [Milestone 3: Batch Processing - Configure EC2 Kafka Client](#milestone-3-batch-processing---configure-ec2-kafka-client)
+   - [Milestone 4: Batch Processing - MSK to S3](#milestone-4-batch-processing---msk-to-s3)
+   - [Milestone 5: Batch Processing - API Gateway](#milestone-5-batch-processing---api-gateway)
+   - [Milestone 6: Batch Processing - Databricks Setup](#milestone-6-batch-processing---databricks-setup)
+   - [Milestone 7: Batch Processing - Spark on Databricks](#milestone-7-batch-processing---spark-on-databricks)
+   - [Milestone 8: Batch Processing - AWS MWAA](#milestone-8-batch-processing---aws-mwaa)
+   - [Milestone 9: Stream Processing - AWS Kinesis](#milestone-9-stream-processing---aws-kinesis)
 5. [File Structure](#file-structure)
 6. [Contributing](#contributing)
 7. [License](#license)
@@ -67,7 +67,7 @@ Pinterest uses a large-scale data pipeline to process user-generated data. In th
 
 - **Task 2: Sign in to AWS.**
   - Use the credentials provided to log in to AWS and ensure you're in the `us-east-1` region.
-
+  
 ### Milestone 3: Batch Processing - Configure EC2 Kafka Client
 - **Task 1: Create a `.pem` key file in AWS Parameter Store.**
   - Create a key pair and save it locally as `KeyName.pem`.
