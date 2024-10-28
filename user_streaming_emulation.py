@@ -1,84 +1,69 @@
 import requests
-import yaml
-from time import sleep
 import random
-from multiprocessing import Process
-import boto3
-import json
-import sqlalchemy
-from sqlalchemy import text
+import db_utils as utils
+import endpoints as ep
+
+from time import sleep
+from typing import Dict
+
 
 random.seed(100)
 
-class AWSDBConnector:
+new_connector = utils.AWSDBConnector()
 
-    def __init__(self):
-        with open('db_creds.yaml', 'r') as stream:
-            creds = yaml.safe_load(stream)
-        self.HOST = creds['HOST']
-        self.USER = creds['USER']
-        self.PASSWORD = creds['PASSWORD']
-        self.DATABASE = 'pinterest_data'
-        self.PORT = 3306
-        
-    def create_db_connector(self):
-        engine = sqlalchemy.create_engine(f"mysql+pymysql://{self.USER}:{self.PASSWORD}@{self.HOST}:{self.PORT}/{self.DATABASE}?charset=utf8mb4")
-        return engine
 
-new_connector = AWSDBConnector()
+def send_data_to_kinesis(invoke_url: str, data: Dict, user_id: str, topic_name: str) -> None:
+    """
+    Sends data to the specified Kinesis stream via a PUT request.
 
-# Set the API Invoke URLs for each Kinesis topic
-pin_invoke_url = "https://8nnc5v1d62.execute-api.us-east-1.amazonaws.com/dev/streams/streaming-124f8314c0a1-pin/record"
-geo_invoke_url = "https://8nnc5v1d62.execute-api.us-east-1.amazonaws.com/dev/streams/streaming-124f8314c0a1-geo/record"
-user_invoke_url = "https://8nnc5v1d62.execute-api.us-east-1.amazonaws.com/dev/streams/streaming-124f8314c0a1-user/record"
+    Args:
+        invoke_url (str): The URL to send the data to.
+        data (Dict): The data to be sent to the Kinesis stream.
+        user_id (str): The user ID to create a stream name.
+        topic_name (str): The topic name to create a stream name.
+    
+    Returns:
+        None
+    """
+    payload = utils.create_kinesis_payload(data, user_id, topic_name)
 
-def send_data_to_kinesis(invoke_url, data, user_id, topic_name):
-    payload = json.dumps({
-            "StreamName": f"streaming-{user_id}-{topic_name}",
-            "Data": data,
-                    "PartitionKey": "partition-1"
-             })
+    try:
+        response = requests.request("PUT", invoke_url, headers=ep.KINESIS_HEADERS, data=payload)
+        if response.status_code != 200:
+            print(f"Failed to send data to {invoke_url}: {response.status_code}, {response.text}")
+        else:
+            print(f"\nData sent successfully:\n {response.text}\n\n")
+    except requests.exceptions.RequestException as ex:
+        print(f"An error occurred: {ex}")
 
-    headers = {'Content-Type': 'application/json'}
-    response = requests.request("PUT", invoke_url, headers=headers, data=payload)
-    print(response.status_code)
-    print(response.json())
-    if response.status_code != 200:
-        print(f"Failed to send data to {invoke_url}: {response.status_code}, {response.text}")
 
-def run_infinite_post_data_loop():
+def run_infinite_post_data_loop() -> None:
+    """
+    Continuously fetches random rows from the database and sends the data to Kinesis streams.
+    
+    The loop runs indefinitely, fetching random rows from Pinterest, geolocation, and user data
+    tables, and sends them to respective Kinesis streams.
+
+    Returns:
+        None
+    """
     while True:
         sleep(random.randrange(0, 2))
         random_row = random.randint(0, 11000)
         engine = new_connector.create_db_connector()
 
         with engine.connect() as connection:
+            random_pin_row = utils.get_db_row("pinterest_data", random_row, connection)
+            print(random_pin_row)
+            send_data_to_kinesis(ep.PIN_INVOKE_URL_KINESIS, random_pin_row, '124f8314c0a1', 'pin')
 
-            pin_string = text(f"SELECT * FROM pinterest_data LIMIT {random_row}, 1")
-            pin_selected_row = connection.execute(pin_string)
+            random_geo_row = utils.get_db_row("geolocation_data", random_row, connection)
+            print(random_geo_row)
+            send_data_to_kinesis(ep.GEO_INVOKE_URL_KINESIS, random_geo_row, '124f8314c0a1', 'geo')
             
-            for row in pin_selected_row:
-                pin_result = dict(row._mapping)
-                print(pin_result)
-                send_data_to_kinesis(pin_invoke_url, pin_result, '124f8314c0a1', 'pin')
-
-            geo_string = text(f"SELECT * FROM geolocation_data LIMIT {random_row}, 1")
-            geo_selected_row = connection.execute(geo_string)
-            
-            for row in geo_selected_row:
-                geo_result = dict(row._mapping)
-                geo_result['timestamp'] = geo_result['timestamp'].isoformat()
-                print(geo_result)
-                send_data_to_kinesis(geo_invoke_url, geo_result, '124f8314c0a1', 'geo')
-
-            user_string = text(f"SELECT * FROM user_data LIMIT {random_row}, 1")
-            user_selected_row = connection.execute(user_string)
-            
-            for row in user_selected_row:
-                user_result = dict(row._mapping)
-                user_result['date_joined'] = user_result['date_joined'].isoformat()
-                print(user_result)
-                send_data_to_kinesis(user_invoke_url, user_result, '124f8314c0a1', 'user')
+            random_user_row = utils.get_db_row("pinterest_data", random_row, connection)
+            print(random_user_row)
+            send_data_to_kinesis(ep.USER_INVOKE_URL_KINESIS, random_user_row, '124f8314c0a1', 'user')
 
 
 if __name__ == "__main__":

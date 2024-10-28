@@ -1,83 +1,68 @@
 import requests
-import yaml
-from time import sleep
 import random
-from multiprocessing import Process
-import boto3
-import json
-import sqlalchemy
-from sqlalchemy import text
+import db_utils as utils
+import endpoints as ep
+
+from time import sleep
+from typing import Dict
+
 
 random.seed(100)
 
-class AWSDBConnector:
+new_connector = utils.AWSDBConnector()
 
-    def __init__(self):
-        with open('db_creds.yaml', 'r') as stream:
-            creds = yaml.safe_load(stream)
-        self.HOST = creds['HOST']
-        self.USER = creds['USER']
-        self.PASSWORD = creds['PASSWORD']
-        self.DATABASE = 'pinterest_data'
-        self.PORT = 3306
-        
-    def create_db_connector(self):
-        engine = sqlalchemy.create_engine(f"mysql+pymysql://{self.USER}:{self.PASSWORD}@{self.HOST}:{self.PORT}/{self.DATABASE}?charset=utf8mb4")
-        return engine
 
-new_connector = AWSDBConnector()
+def send_data_to_kafka(invoke_url: str, data: Dict) -> None:
+    """
+    Sends data to a Kafka topic via HTTP POST request.
 
-# Set the API Invoke URLs for each Kafka topic
-pin_invoke_url = "https://8nnc5v1d62.execute-api.us-east-1.amazonaws.com/dev/topics/124f8314c0a1.pin"
-geo_invoke_url = "https://8nnc5v1d62.execute-api.us-east-1.amazonaws.com/dev/topics/124f8314c0a1.geo"
-user_invoke_url = "https://8nnc5v1d62.execute-api.us-east-1.amazonaws.com/dev/topics/124f8314c0a1.user"
+    Args:
+        invoke_url (str): The URL to send the Kafka data payload to.
+        data (Dict): The data payload to send to Kafka.
 
-def send_data_to_kafka(invoke_url, data):
-    payload = json.dumps({
-        "records": [
-            {
-                "value": data
-            }
-        ]
-    }, 
-        indent=4, sort_keys=True, default=str)
+    Returns:
+        None
+    """
+    payload = utils.create_kafka_payload(data)
 
-    headers = {'Content-Type': 'application/vnd.kafka.json.v2+json'}
-    response = requests.request("POST", invoke_url, headers=headers, data=payload)
-    if response.status_code != 200:
-        print(f"Failed to send data to {invoke_url}: {response.status_code}, {response.text}")
+    try:
+        response = requests.request("POST", invoke_url, headers=ep.KAFKA_HEADERS, data=payload)
+        if response.status_code != 200:
+            print(f"Failed to send data to {invoke_url}: {response.status_code}, {response.text}")
+        else:
+            print(f"\nData sent successfully, status code:  {response.status_code}\n\n")
 
-def run_infinite_post_data_loop():
+    except requests.exceptions.RequestException as ex:
+        print(f"An error occurred: {ex}")
+
+
+def run_infinite_post_data_loop() -> None:
+    """
+    Continuously fetches random rows from the database and sends them to Kafka.
+
+    This function runs indefinitely, fetching data from the database and sending it to Kafka at random intervals.
+
+    Returns:
+        None
+    """
     while True:
         sleep(random.randrange(0, 2))
         random_row = random.randint(0, 11000)
         engine = new_connector.create_db_connector()
 
         with engine.connect() as connection:
+            random_pin_row = utils.get_db_row("pinterest_data", random_row, connection)
+            print(random_pin_row)
+            send_data_to_kafka(ep.PIN_INVOKE_URL_KAFKA, random_pin_row)
 
-            pin_string = text(f"SELECT * FROM pinterest_data LIMIT {random_row}, 1")
-            pin_selected_row = connection.execute(pin_string)
-            
-            for row in pin_selected_row:
-                pin_result = dict(row._mapping)
-                print(pin_result)
-                send_data_to_kafka(pin_invoke_url, pin_result)
+            random_geo_row = utils.get_db_row("geolocation_data", random_row, connection)
+            print(random_geo_row)
+            send_data_to_kafka(ep.PIN_INVOKE_URL_KAFKA, random_geo_row)
 
-            geo_string = text(f"SELECT * FROM geolocation_data LIMIT {random_row}, 1")
-            geo_selected_row = connection.execute(geo_string)
-            
-            for row in geo_selected_row:
-                geo_result = dict(row._mapping)
-                print(geo_result)
-                send_data_to_kafka(geo_invoke_url, geo_result)
+            random_user_row = utils.get_db_row("pinterest_data", random_row, connection)
+            print(random_user_row)
+            send_data_to_kafka(ep.PIN_INVOKE_URL_KAFKA, random_user_row)
 
-            user_string = text(f"SELECT * FROM user_data LIMIT {random_row}, 1")
-            user_selected_row = connection.execute(user_string)
-            
-            for row in user_selected_row:
-                user_result = dict(row._mapping)
-                print(user_result)
-                send_data_to_kafka(user_invoke_url, user_result)
 
 if __name__ == "__main__":
     run_infinite_post_data_loop()
